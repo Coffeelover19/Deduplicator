@@ -54,7 +54,8 @@ def main() -> int:
     except OSError as error:
         print(f"Error while deduplicating files: {error}", file=sys.stderr)
         return 1
-    print(f"Done. Deleted {deleted} duplicate file(s).")
+    noun = "file" if deleted == 1 else "files"
+    print(f"Done. Deleted {deleted} duplicate {noun}.")
     return 0
 
 
