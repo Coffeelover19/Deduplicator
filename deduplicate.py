@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import sys
 from pathlib import Path
 
 CHUNK_SIZE = 1024 * 1024
@@ -26,9 +27,18 @@ def deduplicate(directory: Path) -> int:
         if not path.is_file():
             continue
 
-        digest = file_hash(path)
+        try:
+            digest = file_hash(path)
+        except OSError as error:
+            print(f"Skipped unreadable file: {path.name} ({error})", file=sys.stderr)
+            continue
+
         if digest in seen:
-            path.unlink()
+            try:
+                path.unlink()
+            except OSError as error:
+                print(f"Could not delete duplicate: {path.name} ({error})", file=sys.stderr)
+                continue
             deleted += 1
             print(f"Deleted duplicate: {path.name} (same as {seen[digest].name})")
         else:
@@ -39,7 +49,11 @@ def deduplicate(directory: Path) -> int:
 
 def main() -> int:
     working_dir = Path.cwd()
-    deleted = deduplicate(working_dir)
+    try:
+        deleted = deduplicate(working_dir)
+    except OSError as error:
+        print(f"Error while deduplicating files: {error}", file=sys.stderr)
+        return 1
     print(f"Done. Deleted {deleted} duplicate file(s).")
     return 0
 

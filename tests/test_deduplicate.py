@@ -32,6 +32,8 @@ class DeduplicateTests(unittest.TestCase):
             deleted = deduplicate(tmp_path)
 
             self.assertEqual(deleted, 1)
+            self.assertTrue((tmp_path / "a.txt").exists())
+            self.assertFalse((tmp_path / "b.txt").exists())
             self.assertTrue((sub / "c.txt").exists())
 
 
