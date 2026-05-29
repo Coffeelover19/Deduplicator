@@ -2,10 +2,23 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import sys
 from pathlib import Path
 
 CHUNK_SIZE = 1024 * 1024
+
+# Matches a UUID prefix followed by an underscore, e.g.
+# "4d391215-6e1f-43c7-aad9-80fa67349ab1_"
+_UUID_PREFIX = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_",
+    re.IGNORECASE,
+)
+
+
+def canonical_name(filename: str) -> str:
+    """Return the filename with a leading UUID prefix removed, if present."""
+    return _UUID_PREFIX.sub("", filename)
 
 
 def file_hash(path: Path) -> str:
@@ -20,7 +33,8 @@ def file_hash(path: Path) -> str:
 
 
 def deduplicate(directory: Path) -> int:
-    seen: dict[str, Path] = {}
+    seen_hashes: dict[str, Path] = {}
+    seen_names: dict[str, Path] = {}
     deleted = 0
 
     for path in sorted(directory.iterdir()):
@@ -33,16 +47,22 @@ def deduplicate(directory: Path) -> int:
             print(f"Skipped unreadable file: {path.name} ({error})", file=sys.stderr)
             continue
 
-        if digest in seen:
+        name = canonical_name(path.name)
+
+        hash_original = seen_hashes.get(digest)
+        name_original = seen_names.get(name)
+        original = hash_original if hash_original is not None else name_original
+        if original is not None:
             try:
                 path.unlink()
             except OSError as error:
                 print(f"Could not delete duplicate: {path.name} ({error})", file=sys.stderr)
                 continue
             deleted += 1
-            print(f"Deleted duplicate: {path.name} (same as {seen[digest].name})")
+            print(f"Deleted duplicate: {path.name} (same as {original.name})")
         else:
-            seen[digest] = path
+            seen_hashes[digest] = path
+            seen_names[name] = path
 
     return deleted
 
